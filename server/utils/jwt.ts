@@ -1,17 +1,19 @@
 import { jwtVerify, SignJWT } from "jose";
-import config from "./../../config";
 import { isTokenRevoked } from "./tokenRevocation.js";
 
-// Encode KEY into a Uint8Array
-const secret = new Uint8Array(Buffer.from(config.JWT_KEY, "hex"));
-// const secret = new TextEncoder().encode(config.JWT_KEY);
-// const privateKey = await importPKCS8(process.env.JWT_KEY, "RS256")
+// Helper to get secret
+const getSecret = () => {
+  const config = useRuntimeConfig();
+  const jwtKey = config.jwtKey || process.env.JWT_KEY || "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+  return new Uint8Array(Buffer.from(jwtKey, "hex"));
+};
 
 /** Generate JWT */
 export async function createJwt(
   userId: string,
   level: number
 ): Promise<string> {
+  const secret = getSecret();
   const signer = new SignJWT({ id: userId, level: level })
     .setProtectedHeader({
       alg: "HS256",
@@ -29,7 +31,8 @@ export async function verifyJwt(
     if (isTokenRevoked(token)) {
       return false;
     }
-    
+
+    const secret = getSecret();
     const data = await jwtVerify(token, secret);
     // Check whether the payload has "id" and "exp".
     // This is most likely true.

@@ -305,30 +305,34 @@
                         <div class="bg-nitMaroon-50 p-4 rounded-xl border border-nitMaroon-200">
                             <h3 class="text-sm font-bold text-gray-900 mb-3">{{ mentee.year == 'PG' ? 'UG Details' : 'JEE' }}</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div v-if="mentee.year == 'PG'">
-                                    <label for="student_ug_cgpa" class="block text-xs font-semibold text-gray-700 mb-1">UG CGPA</label>
-                                    <input type="text" name="student_ug_cgpa" id="student_ug_cgpa"
-                                        class="bento-input"
-                                        :value="mentee.past.pg_feilds?.ug_cgpa" />
-                                </div>
-                                <div v-if="mentee.year == 'PG'">
-                                    <label for="student_gate_score" class="block text-xs font-semibold text-gray-700 mb-1">GATE Score</label>
-                                    <input type="text" name="student_gate_score" id="student_gate_score"
-                                        class="bento-input"
-                                        :value="mentee.past.pg_feilds?.gate_score" />
-                                </div>
-                                <div v-else>
-                                    <label for="student_jee_rank" class="block text-xs font-semibold text-gray-700 mb-1">JEE Rank</label>
-                                    <input type="text" name="student_jee_rank" id="student_jee_rank"
-                                        class="bento-input"
-                                        :value="mentee.past.jee?.rank" />
-                                </div>
-                                <div v-else>
-                                    <label for="student_jee_score" class="block text-xs font-semibold text-gray-700 mb-1">JEE Score</label>
-                                    <input type="text" name="student_jee_score" id="student_jee_score"
-                                        class="bento-input"
-                                        :value="mentee.past.jee?.score" />
-                                </div>
+                                <template v-if="mentee.year == 'PG'">
+                                    <div>
+                                        <label for="student_ug_cgpa" class="block text-xs font-semibold text-gray-700 mb-1">UG CGPA</label>
+                                        <input type="text" name="student_ug_cgpa" id="student_ug_cgpa"
+                                            class="bento-input"
+                                            :value="mentee.past.pg_feilds?.ug_cgpa" />
+                                    </div>
+                                    <div>
+                                        <label for="student_gate_score" class="block text-xs font-semibold text-gray-700 mb-1">GATE Score</label>
+                                        <input type="text" name="student_gate_score" id="student_gate_score"
+                                            class="bento-input"
+                                            :value="mentee.past.pg_feilds?.gate_score" />
+                                    </div>
+                                </template>
+                                <template v-else>
+                                    <div>
+                                        <label for="student_jee_rank" class="block text-xs font-semibold text-gray-700 mb-1">JEE Rank</label>
+                                        <input type="text" name="student_jee_rank" id="student_jee_rank"
+                                            class="bento-input"
+                                            :value="mentee.past.jee?.rank" />
+                                    </div>
+                                    <div>
+                                        <label for="student_jee_score" class="block text-xs font-semibold text-gray-700 mb-1">JEE Score</label>
+                                        <input type="text" name="student_jee_score" id="student_jee_score"
+                                            class="bento-input"
+                                            :value="mentee.past.jee?.score" />
+                                    </div>
+                                </template>
                             </div>
                         </div>
 
@@ -430,7 +434,7 @@ const updateAcademic = async (e: Event) => {
 
     if (data.past) mentee.past = data.past;
     
-    await useFetch<{ token: string }>(`/api/students/me/past`, {
+    await $fetch<{ token: string }>(`/api/students/me/past`, {
         method: "PATCH", body: JSON.stringify(data),
         onResponse() {
             academicMessage.value = { type: "success", text: "Updated details." };
@@ -460,7 +464,7 @@ const updateSpecial = async (e: Event) => {
     }
 
     mentee.achievements = creds;
-    await useFetch<{ token: string }>(`/api/students/me/special`, {
+    await $fetch<{ token: string }>(`/api/students/me/special`, {
         method: "PATCH", body: JSON.stringify(creds),
         onResponse() {
             specialMessage.value = { type: "success", text: "Updated details." };
@@ -495,7 +499,7 @@ const updateBasic = async (e: Event) => {
         mentee.section = data.section || '';
     }
     
-    await useFetch<{ token: string }>(`/api/students/me/basic`, {
+    await $fetch<{ token: string }>(`/api/students/me/basic`, {
         method: "PATCH", body: JSON.stringify(data),
         onResponse() {
             basicMessage.value = { type: "success", text: "Updated details." };
@@ -533,7 +537,7 @@ const updatePersonal = async (e: Event) => {
 
     if (mentee && typeof mentee !== 'boolean') mentee.personal_info = data;
     
-    await useFetch<{ token: string }>(`/api/students/me/personal`, {
+    await $fetch<{ token: string }>(`/api/students/me/personal`, {
         method: "PATCH", body: JSON.stringify(data),
         onResponse() {
             personalMessage.value = { type: "success", text: "Updated details." };
@@ -567,7 +571,7 @@ const updateFather = async (e: Event) => {
 
     if (mentee && typeof mentee !== 'boolean') mentee.personal_info.father = data;
     
-    await useFetch<{ token: string }>(`/api/students/me/father`, {
+    await $fetch<{ token: string }>(`/api/students/me/father`, {
         method: "PATCH", body: JSON.stringify(data),
         onResponse() {
             fatherMessage.value = { type: "success", text: "Updated details." };
@@ -601,7 +605,7 @@ const updateMother = async (e: Event) => {
 
     if (mentee && typeof mentee !== 'boolean') mentee.personal_info.mother = data;
     
-    await useFetch<{ token: string }>(`/api/students/me/mother`, {
+    await $fetch<{ token: string }>(`/api/students/me/mother`, {
         method: "PATCH", body: JSON.stringify(data),
         onResponse() {
             motherMessage.value = { type: "success", text: "Updated details." };

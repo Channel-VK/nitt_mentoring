@@ -50,11 +50,11 @@
                     </MiscMessage>
 
                     <div class="flex items-center justify-end">
-                        <router-link 
+                        <NuxtLink 
                             to="/forgot-password" 
                             class="text-sm text-nitMaroon-600 hover:text-nitMaroon-700 font-medium">
                             Forgot password?
-                        </router-link>
+                        </NuxtLink>
                     </div>
 
                     <button 

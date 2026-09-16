@@ -1,18 +1,5 @@
 import nodemailer from "nodemailer";
-import config from "~/config";
 
-const transporter = nodemailer.createTransport({
-  host: config.SMTP_HOST,
-  port: parseInt(config.SMTP_PORT),
-  secure: parseInt(config.SMTP_PORT) === 465, // true for 465, false for other ports like 587
-  auth: {
-    user: config.SMTP_USER,
-    pass: config.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false // Allow self-signed certificates in development
-  }
-});
 const subject = "Reset Your Password on NITT Mentoring Portal";
 const createHtmlContent = (resetLink: string): string => `
 <!DOCTYPE html>
@@ -82,8 +69,28 @@ const createHtmlContent = (resetLink: string): string => `
 `;
 
 export async function sendEmail(to: string, subject: string, body: string, isHtml: boolean = false) {
+  const config = useRuntimeConfig();
+  const smtpHost = config.smtpHost || process.env.SMTP_HOST;
+  const smtpPort = parseInt((config.smtpPort || process.env.SMTP_PORT || "587") as string);
+  const smtpUser = config.smtpUser || process.env.SMTP_USER;
+  const smtpPass = config.smtpPass || process.env.SMTP_PASS;
+  const emailFrom = config.emailFrom || process.env.EMAIL_FROM || "noreply@nitt.edu";
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465, // true for 465, false for other ports like 587
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+    tls: {
+      rejectUnauthorized: false // Allow self-signed certificates in development
+    }
+  });
+
   const sendWithSendGridApi = async () => {
-    const sendGridApiKey = process.env.SENDGRID_API_KEY || config.SMTP_PASS;
+    const sendGridApiKey = process.env.SENDGRID_API_KEY || smtpPass;
 
     if (!sendGridApiKey || !sendGridApiKey.startsWith("SG.")) {
       throw new Error("SendGrid API key not available for HTTPS fallback");
@@ -97,7 +104,7 @@ export async function sendEmail(to: string, subject: string, body: string, isHtm
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: to }] }],
-        from: { email: config.EMAIL_FROM },
+        from: { email: emailFrom },
         subject,
         content: [
           {
@@ -118,7 +125,7 @@ export async function sendEmail(to: string, subject: string, body: string, isHtm
 
   try {
     await transporter.sendMail({
-      from: config.EMAIL_FROM,
+      from: emailFrom,
       to,
       subject,
       ...(isHtml ? { html: body } : { text: body }),
@@ -143,3 +150,4 @@ export async function sendPasswordResetLink(to: string, resetLink: string) {
   const body = createHtmlContent(resetLink);
   await sendEmail(to, subject, body, true);
 }
+
