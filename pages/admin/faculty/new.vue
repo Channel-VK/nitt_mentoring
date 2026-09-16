@@ -105,7 +105,7 @@ const handleSubmit = async (e: Event) => {
     };
     
     // The httpOnly cookie (nitt_token) is automatically sent by the browser
-    await useFetch<{ token: string }>(`/api/faculty/new`, {
+    await $fetch<{ token: string }>(`/api/faculty/new`, {
         method: "POST", 
         body: JSON.stringify(creds),
         onResponse({ request, response, options }) {

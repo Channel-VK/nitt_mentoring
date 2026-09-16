@@ -340,26 +340,30 @@
                     <div v-if="mentee.year != 'PG'" class="font-bold text-xl uppercase">jee</div>
                     <div v-if="mentee.year == 'PG'" class="font-bold text-xl uppercase">UG Details</div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div v-if="mentee.year == 'PG'" class="flex flex-col items-center max-w-xs gap-2">
-                            <label for="student_ug_cgpa">UG CGPA</label>
-                            <input type="text" name="student_ug_cgpa" id="student_ug_cgpa"
-                                class="font-semibold p-2 w-60" :value="mentee.past.pg_feilds?.ug_cgpa" />
-                        </div>
-                        <div v-if="mentee.year == 'PG'" class="flex flex-col items-center max-w-xs gap-2">
-                            <label for="student_gate_score">GATE Score</label>
-                            <input type="text" name="student_gate_score" id="student_gate_score"
-                                class="font-semibold p-2 w-60" :value="mentee.past.pg_feilds?.gate_score" />
-                        </div>
-                        <div v-else class="flex flex-col items-center max-w-xs gap-2">
-                            <label for="student_jee_rank">Rank</label>
-                            <input type="text" name="student_jee_rank" id="student_jee_rank"
-                                class="font-semibold p-2 w-60" :value="mentee.past.jee?.rank" />
-                        </div>
-                        <div v-else class="flex flex-col items-center max-w-xs gap-2">
-                            <label for="student_jee_score">Score</label>
-                            <input type="text" name="student_jee_score" id="student_jee_score"
-                                class="font-semibold p-2 w-60" :value="mentee.past.jee?.score" />
-                        </div>
+                        <template v-if="mentee.year == 'PG'">
+                            <div class="flex flex-col items-center max-w-xs gap-2">
+                                <label for="student_ug_cgpa">UG CGPA</label>
+                                <input type="text" name="student_ug_cgpa" id="student_ug_cgpa"
+                                    class="font-semibold p-2 w-60" :value="mentee.past.pg_feilds?.ug_cgpa" />
+                            </div>
+                            <div class="flex flex-col items-center max-w-xs gap-2">
+                                <label for="student_gate_score">GATE Score</label>
+                                <input type="text" name="student_gate_score" id="student_gate_score"
+                                    class="font-semibold p-2 w-60" :value="mentee.past.pg_feilds?.gate_score" />
+                            </div>
+                        </template>
+                        <template v-else>
+                            <div class="flex flex-col items-center max-w-xs gap-2">
+                                <label for="student_jee_rank">Rank</label>
+                                <input type="text" name="student_jee_rank" id="student_jee_rank"
+                                    class="font-semibold p-2 w-60" :value="mentee.past.jee?.rank" />
+                            </div>
+                            <div class="flex flex-col items-center max-w-xs gap-2">
+                                <label for="student_jee_score">Score</label>
+                                <input type="text" name="student_jee_score" id="student_jee_score"
+                                    class="font-semibold p-2 w-60" :value="mentee.past.jee?.score" />
+                            </div>
+                        </template>
 
                     </div>
                     <MiscMessage
@@ -437,7 +441,7 @@ const updateAcademic = async (e: Event) => {
         mentee.past = data.past;
     }
 
-    await useFetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/past`, {
+    await $fetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/past`, {
         method: "PATCH", body: JSON.stringify(data),
         headers: { "Authorization": `Bearer ${auth.value}` },
         onResponse({ request, response, options }) {
@@ -473,7 +477,7 @@ const updateSpecial = async (e: Event) => {
     const auth = useCookie<string>("nitt_token");
     if (!auth.value) return false;
     mentee.achievements = creds
-    await useFetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/special`, {
+    await $fetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/special`, {
         method: "PATCH", body: JSON.stringify(creds),
         headers: { "Authorization": `Bearer ${auth.value}` },
         onResponse({ request, response, options }) {
@@ -540,7 +544,7 @@ const updateBasic = async (e: Event) => {
     if (data.section) {
         mentee.section = data.section
     }
-    await useFetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/basic`, {
+    await $fetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/basic`, {
         method: "PATCH", body: JSON.stringify(data),
         headers: { "Authorization": `Bearer ${auth.value}` },
         onResponse({ request, response, options }) {
@@ -582,7 +586,7 @@ const updatePersonal = async (e: Event) => {
     const auth = useCookie<string>("nitt_token");
     if (!auth.value) return false;
     mentee.personal_info = data
-    await useFetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/personal`, {
+    await $fetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/personal`, {
         method: "PATCH", body: JSON.stringify(data),
         headers: { "Authorization": `Bearer ${auth.value}` },
         onResponse({ request, response, options }) {
@@ -622,7 +626,7 @@ const updateFather = async (e: Event) => {
     const auth = useCookie<string>("nitt_token");
     if (!auth.value) return false;
     mentee.personal_info.father = data
-    await useFetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/father`, {
+    await $fetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/father`, {
         method: "PATCH", body: JSON.stringify(data),
         headers: { "Authorization": `Bearer ${auth.value}` },
         onResponse({ request, response, options }) {
@@ -662,7 +666,7 @@ const updateMother = async (e: Event) => {
     const auth = useCookie<string>("nitt_token");
     if (!auth.value) return false;
     mentee.personal_info.mother = data
-    await useFetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/mother`, {
+    await $fetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/mother`, {
         method: "PATCH", body: JSON.stringify(data),
         headers: { "Authorization": `Bearer ${auth.value}` },
         onResponse({ request, response, options }) {

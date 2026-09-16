@@ -407,7 +407,7 @@ const handleSubmit = async (e: Event) => {
     }
     
     try {
-        await useFetch(`/api/users/edit`, {
+        await $fetch(`/api/users/edit`, {
             method: "PATCH", 
             body: JSON.stringify({ username: currentUser.value, password }),
             onResponse({ request, response, options }) {

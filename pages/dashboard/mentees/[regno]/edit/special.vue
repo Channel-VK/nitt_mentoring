@@ -61,7 +61,7 @@ const handleSubmit = async (e: Event) => {
     }
     const auth = useCookie<string>("nitt_token");
     if (!auth.value) return false;
-    await useFetch<{ token: string }>(`/api/mentees/update/${regno}/special`, {
+    await $fetch<{ token: string }>(`/api/mentees/update/${regno}/special`, {
         method: "PATCH", body: JSON.stringify(creds),
         headers: { "Authorization": `Bearer ${auth.value}` },
         onResponse({ request, response, options }) {
