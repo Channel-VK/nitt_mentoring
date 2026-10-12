@@ -4,8 +4,8 @@
         <div class="max-w-7xl mx-auto relative z-10">
             <!-- Header -->
             <div class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-900">All Students</h1>
-                <p class="text-gray-600 mt-1">Manage student records and assignments</p>
+                <h1 class="text-3xl font-bold text-gray-900">Students in {{ displayDepartment }}</h1>
+                <p class="text-gray-600 mt-1">Manage department student records and assignments</p>
             </div>
 
             <!-- Tabs -->
@@ -121,7 +121,7 @@
                             </div>
                             <div class="flex items-center text-xs">
                                 <span class="text-gray-500 w-16">Batch:</span>
-                                <span class="text-gray-900 font-medium">{{ student.year === 'UG' ? student.batch : 'N/A' }}</span>
+                                <span class="text-gray-900 font-medium">{{ student.year === 'UG' ? (student.batch || 'N/A') : 'N/A' }}</span>
                             </div>
                             <div v-if="student.mentor" class="flex items-center text-xs">
                                 <span class="text-gray-500 w-16">Mentor:</span>
@@ -148,7 +148,7 @@
                 <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <p class="text-gray-600 font-medium">{{ search ? `No students found matching "${search}"` : 'No students available.' }}</p>
+                <p class="text-gray-600 font-medium">{{ search ? `No students found matching "${search}"` : 'No students available in this department.' }}</p>
             </div>
         </div>
     </div>
@@ -158,28 +158,38 @@
 import type { PartialStudent } from '@/types/types';
 
 definePageMeta({
-    title: "All Students",
+    title: "Department Students",
     middleware: ["level2"]
 })
 
+const userStore = useUserStore()
 const search = ref("")
 const activeTab = ref<'all' | 'UG' | 'PG'>('all')
 
-// Server-side data fetching
-const { data: studentsData, pending, error } = await useFetch('/api/mentees/all', {
-    key: 'hod-students-list'
+// Server-side data fetching scoped to HOD's department
+const { data: studentsData, pending, error } = await useFetch('/api/mentees/dept', {
+    key: 'hod-students-list',
+    headers: useRequestHeaders(['cookie'])
+})
+
+const displayDepartment = computed(() => {
+    if (userStore.department && userStore.department !== "NONE") {
+        return userStore.department
+    }
+    const firstDept = studentsData.value?.[0]?.department
+    return firstDept?.name || firstDept?.id || "Department"
 })
 
 const loading = computed(() => pending.value)
 
-const mentees = computed(() => {
+const mentees = computed<PartialStudent[]>(() => {
     if (!studentsData.value) return []
     return studentsData.value.map(mentee => ({
         register_number: mentee.register_number,
         name: mentee.name,
         year: mentee.year,
-        section: mentee.section,
-        batch: mentee.year === 'UG' ? (typeof mentee.batch === 'number' ? mentee.batch : Number(mentee.batch) || 0) : null,
+        section: mentee.section || '',
+        batch: typeof mentee.batch === 'number' ? mentee.batch : Number(mentee.batch) || 0,
         department: mentee.department || { name: 'Unknown', id: 'unknown' },
         mentor_id: mentee.mentor_id,
         mentor: mentee.mentor || undefined,
@@ -219,7 +229,7 @@ const openStudentEdit = async (regno: string) => {
 }
 
 // Delete student
-async function deleteStudent(student: PartialStudent) {
+async function deleteStudent(student: { name: string; register_number: string }) {
     if (!confirm(`Are you sure you want to delete ${student.name} (${student.register_number})?`)) {
         return
     }
