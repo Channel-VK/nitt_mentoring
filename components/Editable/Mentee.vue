@@ -383,7 +383,7 @@
 <script setup lang="ts">
 import type { Student } from "@/types/types.js"
 const { mentee } = defineProps<{ mentee: Student }>()
-const tempMentee = mentee
+const tempMentee = JSON.parse(JSON.stringify(mentee))
 const editOpen = ref(false)
 
 const specialMessage = ref({ type: "error", text: "" })
@@ -585,7 +585,7 @@ const updatePersonal = async (e: Event) => {
     };
     const auth = useCookie<string>("nitt_token");
     if (!auth.value) return false;
-    mentee.personal_info = data
+    Object.assign(mentee.personal_info, data)
     await $fetch<{ token: string }>(`/api/mentees/update/${mentee.register_number}/personal`, {
         method: "PATCH", body: JSON.stringify(data),
         headers: { "Authorization": `Bearer ${auth.value}` },

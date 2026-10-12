@@ -19,7 +19,7 @@ export default defineEventHandler(async (e) => {
     });
   }
 
-  if (Number(jwtPayload.level) < 2) {
+  if (Number(jwtPayload.level) < 1) {
     throw createError({
       statusCode: 401,
       statusText: "You do not have permission.",

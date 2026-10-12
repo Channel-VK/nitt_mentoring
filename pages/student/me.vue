@@ -379,7 +379,7 @@ if (mentee && typeof mentee !== "boolean") {
     user.loggedIn = true;
     user.department = mentee.department?.name || "NONE";
 }
-const tempMentee = mentee;
+const tempMentee = JSON.parse(JSON.stringify(mentee));
 
 if (!mentee) navigateTo("/login")
 
@@ -535,7 +535,7 @@ const updatePersonal = async (e: Event) => {
         email_id: formData.get("student_email_id") as string,
     };
 
-    if (mentee && typeof mentee !== 'boolean') mentee.personal_info = data;
+    if (mentee && typeof mentee !== 'boolean') Object.assign(mentee.personal_info, data);
     
     await $fetch<{ token: string }>(`/api/students/me/personal`, {
         method: "PATCH", body: JSON.stringify(data),
