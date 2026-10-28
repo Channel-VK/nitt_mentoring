@@ -1,4 +1,5 @@
 import { Client } from "../../../utils/database.js";
+import { getTokenFromEvent } from "../../../utils/auth.js";
 import { verifyJwt } from "../../../utils/jwt.js";
 
 const client = new Client();
@@ -13,15 +14,14 @@ export default defineEventHandler(async (e) => {
     });
   }
 
-  const auth = getHeader(e, "Authorization");
-  if (!auth || !auth.startsWith("Bearer ")) {
+  const token = getTokenFromEvent(e);
+  if (!token) {
     throw createError({
       statusCode: 401,
       statusText: "Not logged in.",
     });
   }
 
-  const token = auth.slice(7);
   const jwtPayload = await verifyJwt(token);
   if (!jwtPayload || Date.now() / 1000 > jwtPayload.exp) {
     throw createError({
@@ -30,7 +30,7 @@ export default defineEventHandler(async (e) => {
     });
   }
 
-  // Only level 3 (admin) users can delete users
+  // Only level 2 (HOD) or level 3 (admin) users can delete users
   if (Number(jwtPayload.level) < 2) {
     throw createError({
       statusCode: 403,
@@ -56,7 +56,7 @@ export default defineEventHandler(async (e) => {
     }
 
     // Prevent self-deletion
-    if (existingUser.id.toString() === jwtPayload.id) {
+    if (existingUser.id.toString() === String(jwtPayload.id)) {
       throw createError({
         statusCode: 400,
         statusText: "You cannot delete your own account.",
@@ -65,8 +65,6 @@ export default defineEventHandler(async (e) => {
 
     // Use transaction to ensure data consistency
     await client.prisma.$transaction(async (prisma) => {
-      // Delete related records first
-      
       // If user is a faculty member, delete faculty record
       if (existingUser.mentor) {
         await prisma.faculty.delete({
@@ -105,9 +103,8 @@ export default defineEventHandler(async (e) => {
     };
   } catch (error: any) {
     console.error("Error deleting user:", error);
-    
     if (error.statusCode) {
-      throw error; // Re-throw our custom errors
+      throw error;
     }
 
     throw createError({
@@ -115,4 +112,4 @@ export default defineEventHandler(async (e) => {
       statusText: "Failed to delete user. Please try again.",
     });
   }
-}); 
+});

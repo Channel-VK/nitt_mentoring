@@ -1,58 +1,79 @@
-import { Student } from "../../../../../types/types.js";
 import { Client } from "../../../../utils/database.js";
+import { getTokenFromEvent } from "../../../../utils/auth.js";
+import { verifyJwt } from "../../../../utils/jwt.js";
 
 const client = new Client();
 export default defineEventHandler(async (e) => {
-  const auth = getHeader(e, "Authorization");
-  if (!auth || !auth.startsWith("Bearer ")) {
-    // Not a valid auth token
+  const token = getTokenFromEvent(e);
+  if (!token) {
     throw createError({
       statusCode: 401,
       statusText: "Not logged in.",
     });
-  } else {
-    const token = auth.slice(7);
-    const jwtPayload = await verifyJwt(token);
-    if (!jwtPayload || (Date.now() / 1000) > jwtPayload.exp) {
-      throw createError({
-        statusCode: 401,
-        statusText: "Session expired. Please login again.",
-      });
-    }
-    const regno = getRouterParam(e, "regno");
-    if (
-      Number(jwtPayload.level) < 1
-    ) {
-      throw createError({
-        statusCode: 401,
-        statusText: "You do not have permission.",
-      });
-    }
-    const currentUser = await client.prisma.faculty.findFirst({
-      where: { user_id: Number(jwtPayload.id) },
+  }
+
+  const jwtPayload = await verifyJwt(token);
+  if (!jwtPayload || (Date.now() / 1000) > jwtPayload.exp) {
+    throw createError({
+      statusCode: 401,
+      statusText: "Session expired. Please login again.",
     });
-    if (!currentUser) {
-      throw createError({
-        statusCode: 404,
-        statusText: "You do not exist.",
-      });
+  }
+
+  if (Number(jwtPayload.level) < 1) {
+    throw createError({
+      statusCode: 403,
+      statusText: "You do not have permission.",
+    });
+  }
+
+  const regno = getRouterParam(e, "regno");
+  if (!regno) {
+    throw createError({
+      statusCode: 400,
+      statusText: "Registration number is required.",
+    });
+  }
+
+  const body = await readBody<{
+    blood_group?: string;
+    mobile_number?: string;
+    whatsapp_number?: string;
+    date_of_birth?: string | Date;
+    gender?: string;
+    email_id?: string;
+  }>(e);
+
+  let dob: Date | null | undefined = undefined;
+  if (body?.date_of_birth) {
+    const parsed = new Date(body.date_of_birth);
+    if (!isNaN(parsed.getTime())) {
+      dob = parsed;
     }
-    const body = await readBody<
-      Omit<Omit<Student["personal_info"], "father">, "mother">
-    >(e);
+  }
+
+  try {
     await client.prisma.students.update({
       where: { register_no: regno },
       data: {
-        blood_group: body.blood_group,
-        mobile_number: body.mobile_number,
-        whatsapp_number: body.whatsapp_number,
-        date_of_birth: new Date(body.date_of_birth || 0),
-        gender: body.gender,
-        email_id: body.email_id,
+        blood_group: body?.blood_group,
+        mobile_number: body?.mobile_number,
+        whatsapp_number: body?.whatsapp_number,
+        date_of_birth: dob,
+        gender: body?.gender,
+        email_id: body?.email_id,
       },
     });
+
     return {
-      message: "Successfully assigned mentor.",
+      message: "Personal details updated successfully.",
     };
+  } catch (error: any) {
+    console.error("Error updating personal info:", error);
+    if (error.statusCode) throw error;
+    throw createError({
+      statusCode: 500,
+      statusText: "Failed to update personal details.",
+    });
   }
 });

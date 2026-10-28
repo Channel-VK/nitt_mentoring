@@ -29,7 +29,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                     </svg>
                                     <span class="text-sm font-semibold text-gray-700">Total Mentees:</span>
-                                    <span class="text-lg font-bold text-nitMaroon-700">{{ faculty.mentees.length }}</span>
+                                    <span class="text-lg font-bold text-nitMaroon-700">{{ currentMenteeCount }}</span>
                                 </div>
                             </div>
                         </div>
@@ -41,12 +41,13 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 my-6 animate-slide-up">
                 <button 
                     @click="pushChanges"
-                    class="px-6 py-3 bg-nitMaroon-600 hover:bg-nitMaroon-700 text-white font-semibold rounded-lg transition-colors duration-300">
+                    :disabled="isPushing"
+                    class="px-6 py-3 bg-nitMaroon-600 hover:bg-nitMaroon-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors duration-300">
                     <span class="flex items-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        Commit Changes
+                        {{ isPushing ? 'Saving Changes...' : 'Commit Changes' }}
                     </span>
                 </button>
                 
@@ -167,7 +168,7 @@
                                 class="hover:bg-nitMaroon-50/50 transition-colors">
                                 <td class="px-6 py-4">
                                     <input type="checkbox" 
-                                        :checked="mentee.mentor_id === Number(facultyId)"
+                                        :checked="menteeAssignments[mentee.register_number] === Number(facultyId)"
                                         :disabled="Boolean(mentee.mentor_id && mentee.mentor_id !== -1 && (mentee.mentor_id !== Number(facultyId)))"
                                         @change="e => updateMentor(e, mentee.register_number)"
                                         class="w-5 h-5 text-nitMaroon-600 rounded border-gray-300 focus:ring-nitMaroon-500 focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" />
@@ -216,7 +217,7 @@
                 </div>
                 <div class="w-1/2 flex">
                     <div class="w-40">Department</div>
-                    <div class="w-60">: <span class="pl-2">{{mentees[0]?.department}}</span></div>
+                    <div class="w-60">: <span class="pl-2">{{mentees[0]?.department?.name || mentees[0]?.department}}</span></div>
                 </div>
             </div>
             <table class="w-full border-collapse border border-gray-700 mt-5">
@@ -245,6 +246,8 @@
 </template>
 
 <script setup lang="ts">
+import type { PartialStudent } from "@/types/types.js";
+
 definePageMeta({
     middleware: [
         "level2"
@@ -253,82 +256,138 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const facultyId = route.params.facultyId;
+const facultyId = route.params.facultyId as string;
 const faculty = await useFaculty(Number(facultyId))
 
-const mentees = ((await useSudoMentee()) || []).map(mentee => ({ ...mentee, mentor: mentee.mentor || { name: "Not Assigned" } }))
-const filteredMentees = mentees.filter(mentee => mentee.mentor_id === Number(facultyId) || mentee.mentor_id === null);
+const rawMentees = ((await useSudoMentee()) || []).map(mentee => ({
+    ...mentee,
+    mentor: mentee.mentor || { name: "Not Assigned" }
+}))
 
-if (!faculty) nextTick(() => router.go(-1))
-else mentees?.sort((a, b) => a.mentor_id === faculty.id && b.mentor_id !== faculty.id ? -1 : a.mentor_id !== faculty.id && b.mentor_id === faculty.id ? 1 : 0)
-
-const menteeMap = new Map<string, number>();
-
-mentees?.forEach(mentee => menteeMap.set(mentee.register_number, mentee.mentor_id || -1));
-
-const updateMentor = async (e: Event, regno: string) => {
-    const box = e.currentTarget as HTMLInputElement;
-    const mentor_id = box.checked ? Number(facultyId) : -1
-    menteeMap.set(regno, mentor_id);
+if (!faculty) {
+    nextTick(() => router.go(-1))
 }
 
+const mentees = ref<any[]>(rawMentees);
+
+mentees.value.sort((a, b) => {
+    const aId = Number(a.mentor_id);
+    const bId = Number(b.mentor_id);
+    const target = Number(facultyId);
+    if (aId === target && bId !== target) return -1;
+    if (aId !== target && bId === target) return 1;
+    return 0;
+});
+
+const menteeAssignments = ref<Record<string, number>>({});
+
+mentees.value.forEach(mentee => {
+    menteeAssignments.value[mentee.register_number] = mentee.mentor_id ?? -1;
+});
+
+const currentMenteeCount = computed(() => {
+    return Object.values(menteeAssignments.value).filter(id => id === Number(facultyId)).length;
+});
+
+const updateMentor = (e: Event, regno: string) => {
+    const box = e.currentTarget as HTMLInputElement;
+    menteeAssignments.value[regno] = box.checked ? Number(facultyId) : -1;
+}
+
+const isPushing = ref(false);
+
 const pushChanges = async () => {
-    let successes = 0;
-    const failed: string[] = [];
+    if (isPushing.value) return;
 
-    for (const [mtee, mtor] of menteeMap.entries()) {
-        const currentMentor = mentees.find(x => x.register_number === mtee)?.mentor_id;
-        if (mtor === currentMentor) continue;
+    const changes: Array<{ regno: string; mentor_id: number }> = [];
 
-        try {
-            await $fetch(`/api/mentees/${mtee}`, {
-                method: "PATCH",
-                body: { mentor_id: mtor },
+    for (const mentee of mentees.value) {
+        const initialMentor = mentee.mentor_id ?? -1;
+        const currentMentor = menteeAssignments.value[mentee.register_number] ?? initialMentor;
+        if (currentMentor !== initialMentor) {
+            changes.push({
+                regno: mentee.register_number,
+                mentor_id: currentMentor,
             });
-            successes += 1;
-        } catch (_err) {
-            failed.push(mtee);
         }
     }
 
-    if (failed.length > 0) {
-        message.value.type = "error";
-        message.value.text = successes > 0
-            ? `Mentor updated for ${successes} students. Failed for: ${failed.join(", ")}`
-            : `Unable to change mentor for: ${failed.join(", ")}`;
-    } else {
-        message.value.type = "success";
-        message.value.text = `Mentor for ${successes} students changed!`;
+    if (changes.length === 0) {
+        message.value.type = "info";
+        message.value.text = "No changes to commit.";
+        return;
     }
 
-    if (successes > 0) {
-        setTimeout(() => router.go(0), 1200);
+    isPushing.value = true;
+    try {
+        await $fetch('/api/mentees/assign', {
+            method: "POST",
+            body: { changes },
+        });
+
+        // Update local state cleanly
+        for (const change of changes) {
+            const found = mentees.value.find(m => m.register_number === change.regno);
+            if (found) {
+                found.mentor_id = change.mentor_id === -1 ? null : change.mentor_id;
+                if (change.mentor_id === Number(facultyId)) {
+                    found.mentor = { name: faculty?.name || "Assigned" };
+                } else {
+                    found.mentor = { name: "Not Assigned" };
+                }
+            }
+        }
+
+        // Re-sort mentees so newly assigned students are at top
+        mentees.value.sort((a, b) => {
+            const aId = Number(a.mentor_id);
+            const bId = Number(b.mentor_id);
+            const target = Number(facultyId);
+            if (aId === target && bId !== target) return -1;
+            if (aId !== target && bId === target) return 1;
+            return 0;
+        });
+
+        message.value.type = "success";
+        message.value.text = `Mentor updated successfully for ${changes.length} student${changes.length > 1 ? 's' : ''}!`;
+    } catch (err: any) {
+        console.error("Failed to commit mentor changes:", err);
+        message.value.type = "error";
+        message.value.text = err?.data?.statusText || err?.data?.statusMessage || "Unable to save mentor changes.";
+    } finally {
+        isPushing.value = false;
     }
 }
 
+const filteredMentees = computed(() => {
+    return mentees.value.filter(mentee => {
+        const mId = mentee.mentor_id;
+        return mId === Number(facultyId) || mId === null || mId === undefined || mId === -1;
+    });
+});
+
 const computedMentees = computed(() => {
-    return !expandFilter.value ? filteredMentees :
-        filteredMentees.filter(x => {
+    return !expandFilter.value ? filteredMentees.value :
+        filteredMentees.value.filter(x => {
             return (
                 (batch.value ? String(x.batch || "").startsWith(batch.value) : true) &&
-                (classSection.value ? (x.section || "").toUpperCase() === classSection.value.toUpperCase() : true)&&
-                (name.value ? x.name.toLowerCase().includes(name.value.toLowerCase()):true) &&
-                (regNo.value ? x.register_number.startsWith(regNo.value):true)
-            )
-        })
-})
+                (classSection.value ? (x.section || "").toUpperCase() === classSection.value.toUpperCase() : true) &&
+                (name.value ? x.name.toLowerCase().includes(name.value.toLowerCase()) : true) &&
+                (regNo.value ? x.register_number.startsWith(regNo.value) : true)
+            );
+        });
+});
 
-
-const name=ref("")
-const batch=ref("")
-const regNo=ref("")
+const name = ref("")
+const batch = ref("")
+const regNo = ref("")
 const classSection = ref("")
 const expandFilter = ref(false)
 const message = ref({ text: "", type: 'success' })
 
 const selectedMeetingNumber = ref("");
 const meetings = ref();
-const meetingNumbers:any = await useMeetings(Number(facultyId));
+const meetingNumbers: any = await useMeetings(Number(facultyId));
 
 watch(selectedMeetingNumber, async (newMeetingNumber: string) => {
     if (newMeetingNumber) {

@@ -4,6 +4,15 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
 
     const session = await useUserSession();
     if (!session.ok) {
+      if (session.statusCode === 429) {
+        return abortNavigation(
+          createError({
+            statusCode: 429,
+            statusMessage: "Too many requests. Please wait a moment and try again.",
+          })
+        );
+      }
+
       if (session.statusCode && session.statusCode >= 500) {
         return abortNavigation(
           createError({
@@ -30,12 +39,19 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     // Level 2 users should always have a faculty profile with department.
     // Level 3 users may not, so keep existing department value for them.
     if (user.level === 2) {
-      const faculty = await useFaculty();
-      if (faculty && faculty.department?.name) {
-        userStore.department = faculty.department.name;
+      try {
+        const faculty = await useFaculty();
+        if (faculty && faculty.department?.name) {
+          userStore.department = faculty.department.name;
+        }
+      } catch (_ignored) {
+        // Non-critical, do not block or sign out
       }
     }
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.statusCode === 429 || e?.statusCode >= 500) {
+      return abortNavigation(e);
+    }
     return navigateTo(`/login?redirect=${to.fullPath}`);
   }
 });

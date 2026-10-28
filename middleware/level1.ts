@@ -5,6 +5,15 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     // Always validate server session to avoid stale Pinia state when cookie expires/disappears.
     const session = await useUserSession();
     if (!session.ok) {
+      if (session.statusCode === 429) {
+        return abortNavigation(
+          createError({
+            statusCode: 429,
+            statusMessage: "Too many requests. Please wait a moment and try again.",
+          })
+        );
+      }
+
       if (session.statusCode && session.statusCode >= 500) {
         return abortNavigation(
           createError({
@@ -28,7 +37,10 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     userStore.username = user.username;
     userStore.id = user.id;
     userStore.level = user.level;
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.statusCode === 429 || e?.statusCode >= 500) {
+      return abortNavigation(e);
+    }
     return navigateTo(`/login?redirect=${to.fullPath}`);
   }
 });

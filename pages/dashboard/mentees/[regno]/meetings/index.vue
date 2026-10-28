@@ -11,7 +11,7 @@
         <h1 class="text-2xl font-bold self-start mt-12">Meetings</h1>
         <div
             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 items-stretch w-full gap-4 mt-5 pr-4 max-w-sm sm:max-w-2xl md:max-w-3xl lg:max-w-6xl">
-            <ul v-for="meeting, i in meetings" :key="`meeting_${meeting.id}`"
+            <ul v-for="meeting in meetings" :key="`meeting_${meeting.id}`"
                 class="text-start bg-zinc-100 rounded-md p-2 block w-full">
                 <li class="font-bold">Meeting #{{ meeting.meeting_number }}</li>
                 <li class="font-semibold text-xs">{{ new Date(meeting.date).toISOString().split("T")[0].split("-").reverse().join("/") }}</li>
@@ -44,16 +44,16 @@
         <div
             :class="`${modelOpen ? `visible` : `invisible`} rounded-xl w-full md:max-w-2xl bg-white fixed z-50 p-4 flex flex-col items-center`">
             <div class="flex justify-between w-full">
-                <div>Editing Details For {{ meetings.find(x => x.meeting_number ===  currentMeeting)?.meeting_number}}</div>
+                <div>Editing Details For Meeting #{{ currentMeeting }}</div>
                 <button class="self-end" @click="_ => modelOpen = false">
                     X
                 </button>
             </div>
-            <form class="flex flex-col items-center gap-4 pt-8" @submit="e => handleSubmit(e)">
-                <input type="date" name="date_field" :value="meetings.find(x => x.meeting_number ===  currentMeeting)?.date.toISOString().split(`T`)[0]" :max="new Date().toISOString().split(`T`)[0]"
-                    class="p-2 rounded-md w-48 lg:w-72 shadow-md" />
+            <form class="flex flex-col items-center gap-4 pt-8 w-full" @submit="e => handleSubmit(e)">
+                <input type="date" name="date_field" :value="meetings.find(x => x.meeting_number === currentMeeting)?.date.toISOString().split(`T`)[0]" :max="new Date().toISOString().split(`T`)[0]"
+                    class="p-2 rounded-md w-48 lg:w-72 shadow-md border border-gray-300" />
                 <h2 class="text-xl font-bold">Discussion:</h2>
-                <textarea name="discussion_field" class="p-2 rounded-md w-48 lg:w-72 shadow-md" :value="meetings.find(x => x.meeting_number ===  currentMeeting)?.discussion" />
+                <textarea name="discussion_field" class="p-2 rounded-md w-full max-w-lg shadow-md border border-gray-300" rows="5" :value="meetings.find(x => x.meeting_number === currentMeeting)?.discussion" />
                 <MiscMessage
                     :class="`${message.text ? `opacity-100` : `opacity-0`} transition duration-500 ease-in-out w-full lg:w-96`"
                     :type="message.type">
@@ -69,30 +69,25 @@
         <div
             :class="`${viewOpen ? `visible` : `invisible`} rounded-xl w-full md:max-w-2xl bg-white fixed z-50 p-4 flex flex-col items-center`">
             <div class="flex justify-between w-full">
-                <div>Viewing Details For {{ meetings.find(x => x.meeting_number ===  currentMeeting)?.meeting_number }}</div>
+                <div>Viewing Details For Meeting #{{ currentMeeting }}</div>
                 <button class="self-end" @click="_ => viewOpen = false">
                     X
                 </button>
             </div>
-            <div class="flex flex-col items-center gap-4 pt-8">
+            <div class="flex flex-col items-center gap-4 pt-8 w-full">
                 <h2 class="text-xl font-bold">Date:</h2>
-                <div class="p-2 rounded-md w-48 lg:w-72 shadow-md">
-                    {{ meetings.find(x => x.meeting_number ===  currentMeeting)?.date.toISOString().split(`T`)[0] }}
+                <div class="p-2 rounded-md w-48 lg:w-72 shadow-md bg-gray-50 text-center">
+                    {{ meetings.find(x => x.meeting_number === currentMeeting)?.date.toISOString().split(`T`)[0] }}
                 </div>
                 <h2 class="text-xl font-bold">Discussion:</h2>
-                <div class="p-2 rounded-md w-48 overflow-auto lg:w-72 shadow-md  ">
-                    {{ meetings.find(x => x.meeting_number ===  currentMeeting)?.discussion }}
+                <div class="p-4 rounded-md w-full max-w-lg overflow-auto shadow-md bg-gray-50 whitespace-pre-wrap">
+                    {{ meetings.find(x => x.meeting_number === currentMeeting)?.discussion }}
                 </div>
-                <MiscMessage
-                    :class="`${message.text ? `opacity-100` : `opacity-0`} transition duration-500 ease-in-out w-full lg:w-96`"
-                    :type="message.type">
-                    {{ message.text }}</MiscMessage>
-               
             </div>
         </div>
-        <div :class="`${viewOpen ? `visible` : `invisible`} bg-black/40 backdrop-blur-md inset-0 w-full fixed z-40`">
+        <div :class="`${viewOpen ? `visible` : `invisible`} bg-black/40 backdrop-blur-md inset-0 w-full fixed z-40`" @click="viewOpen = false">
         </div>
-        <div :class="`${modelOpen ? `visible` : `invisible`} bg-black/40 backdrop-blur-md inset-0 w-full fixed z-40`">
+        <div :class="`${modelOpen ? `visible` : `invisible`} bg-black/40 backdrop-blur-md inset-0 w-full fixed z-40`" @click="modelOpen = false">
         </div>
     </div>
 </template>
@@ -103,7 +98,7 @@ definePageMeta({
         "level1"
     ]
 })
-const userStore = useUserStore()
+
 const route = useRoute();
 
 const regno = route.params.regno as string;
@@ -118,65 +113,61 @@ if (!mentee) {
         navigateTo("/dashboard")
     })
 } else {
-    meetings.value = mentee.meetings.map(x => ({ ...x, date: new Date(x.date) }));
-    //  meetings.value = mentee.meetings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    meetings.value = (mentee.meetings || []).map(x => ({ ...x, date: new Date(x.date) }));
 }
 
 const message = ref({ type: "error", text: "" })
 const modelOpen = ref(false);
 const viewOpen = ref(false);
 const currentMeeting = ref(-1)
-const setMeeting = (meetingId: number) => {
-    currentMeeting.value = meetingId;
+
+const setMeeting = (meetingNumber: number) => {
+    currentMeeting.value = meetingNumber;
+    message.value.text = "";
     modelOpen.value = true;
 }
-const setView = (meetingId: number) => {
-    currentMeeting.value = meetingId;
+
+const setView = (meetingNumber: number) => {
+    currentMeeting.value = meetingNumber;
     viewOpen.value = true;
 }
-
 
 const handleSubmit = async (e: Event) => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form as HTMLFormElement);
-    const meetingId = currentMeeting.value;
+    const meetingNum = currentMeeting.value;
+    const meetingRecord = meetings.value.find(x => x.meeting_number === meetingNum);
+
+    if (!meetingRecord) {
+        message.value.type = "error";
+        message.value.text = "Meeting not found.";
+        return;
+    }
+
     const creds = {
-        meetingId: meetings.value.find(x => x.meeting_number ===  meetingId)?.id,
+        meetingId: meetingRecord.id,
         date: formData.get("date_field"),
         discussion: formData.get("discussion_field"),
     };
-    const auth = useCookie<string>("nitt_token");
-    if (!auth.value) return false;
-    await useFetch<{ token: string }>(`/api/meetings/details`, {
-        method: "PATCH", body: JSON.stringify(creds),
-        headers: { "Authorization": `Bearer ${auth.value}` },
-        onResponse({ request, response, options }) {
-            message.value.type = "info"
-            message.value.text = "Updated meeting info."
-            const i = meetings.value.findIndex(x => x.meeting_number ===  meetingId);
-            meetings.value[i].date = new Date(String(creds.date));
-            meetings.value[i].discussion = String(creds.discussion);
-        },
-        onResponseError({ request, response, options }) {
-            message.value.type = "error"
-            switch (response.status) {
-                case 400:
-                    // this won't happen
-                    message.value.text = "Missing Fields."
-                case 401:
-                    message.value.text = "You are not supposed to be here."
-                    break;
-                case 404:
-                    message.value.text = "No such meeting exists."
-                    break;
-                default:
-                    message.value.text = "An unknown error occurred";
-                    break;
-            }
-            abortNavigation()
 
-        }
-    })
+    try {
+        await $fetch(`/api/meetings/details`, {
+            method: "PATCH",
+            body: creds,
+        });
+
+        message.value.type = "info";
+        message.value.text = "Updated meeting info.";
+        meetingRecord.date = new Date(String(creds.date));
+        meetingRecord.discussion = String(creds.discussion);
+
+        setTimeout(() => {
+            modelOpen.value = false;
+        }, 1000);
+    } catch (err: any) {
+        message.value.type = "error";
+        message.value.text = err?.data?.statusText || err?.data?.statusMessage || "Failed to update meeting.";
+    }
 }
 </script>

@@ -1,5 +1,5 @@
-# use node 16 alpine image
-FROM node:16-alpine
+# use node 18 alpine image
+FROM node:18-alpine
 
 # create work directory in app folder
 WORKDIR /app
@@ -8,25 +8,25 @@ WORKDIR /app
 RUN apk --no-cache add openssh g++ make python3 git
 
 # copy over package.json files
-COPY package*.json .
+COPY package*.json ./
 
-# install all depencies
+# install all dependencies
 RUN npm i
 
+# copy over project files
 COPY . .
 
-# generate types
+# generate prisma types
 RUN npx prisma generate --schema=/app/server/utils/prisma/schema.prisma
-
-# copy over all files to the work directory
-ADD . /app
 
 # build the project
 RUN npm run build
 
 # expose the host and port 1920 to the server
-ENV HOST 0.0.0.0
+ENV HOST=0.0.0.0
+ENV PORT=1920
+ENV NITRO_PORT=1920
 EXPOSE 1920
 
-# run the build project with node
-ENTRYPOINT ["node", ".output/server/index.mjs"]
+# sync database schema, seed initial records if needed, and start server
+ENTRYPOINT ["/bin/sh", "-c", "npx prisma db push --schema=/app/server/utils/prisma/schema.prisma --skip-generate && node server/utils/docker_init_db.js; exec node .output/server/index.mjs"]

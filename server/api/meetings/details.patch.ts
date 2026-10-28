@@ -1,50 +1,68 @@
 import { Client } from "../../utils/database.js";
+import { getTokenFromEvent } from "../../utils/auth.js";
+import { verifyJwt } from "../../utils/jwt.js";
 
 const client = new Client();
 export default defineEventHandler(async (e) => {
-
-  const auth = getHeader(e, "Authorization");
-  if (!auth || !auth.startsWith("Bearer ")) {
-    // Not a valid auth token
+  const token = getTokenFromEvent(e);
+  if (!token) {
     throw createError({
       statusCode: 401,
       statusText: "Not logged in.",
     });
-  } else {
-    const token = auth.slice(7);
-    const jwtPayload = await verifyJwt(token);
-    if (!jwtPayload || (Date.now() / 1000) > jwtPayload.exp) {
-      throw createError({
-        statusCode: 401,
-        statusText: "Session expired. Please login again.",
-      });
-    }
-    const body = await readBody<
-      { meetingId: meetingId; date: Date; discussion: string; mentee_id: string }
-    >(e);
-    if (
-      ["date", "discussion"].some((k) => !Object.hasOwn(body, k))
-    ) {
-      throw createError({
-        statusCode: 400,
-        statusText: "Invalid Form Body",
-      });
-    }
-    try {
-      await client.prisma.meetings.update({
-        where: { id: body.meetingId },
-        data: {
-          date: new Date(body.date),
-          discussion: body.discussion,
-        },
-      });
-      return { message: "Meeting updated successfully!" };
-    } catch (err) {
-      throw createError({
-        statusCode: 400,
-        statusText: "Invalid Form Body",
-        message: err
-      });
-    }
+  }
+
+  const jwtPayload = await verifyJwt(token);
+  if (!jwtPayload || (Date.now() / 1000) > jwtPayload.exp) {
+    throw createError({
+      statusCode: 401,
+      statusText: "Session expired. Please login again.",
+    });
+  }
+
+  if (Number(jwtPayload.level) < 1) {
+    throw createError({
+      statusCode: 403,
+      statusText: "You do not have permission.",
+    });
+  }
+
+  const body = await readBody<{
+    meetingId: number;
+    date: Date | string;
+    discussion: string;
+  }>(e);
+
+  if (!body || !body.meetingId || !body.date || body.discussion === undefined) {
+    throw createError({
+      statusCode: 400,
+      statusText: "Invalid Form Body",
+    });
+  }
+
+  const parsedDate = new Date(body.date);
+  if (isNaN(parsedDate.getTime())) {
+    throw createError({
+      statusCode: 400,
+      statusText: "Invalid date format",
+    });
+  }
+
+  try {
+    await client.prisma.meetings.update({
+      where: { id: Number(body.meetingId) },
+      data: {
+        date: parsedDate,
+        discussion: String(body.discussion),
+      },
+    });
+    return { message: "Meeting updated successfully!" };
+  } catch (err: any) {
+    console.error("Error updating meeting:", err);
+    throw createError({
+      statusCode: 500,
+      statusText: "Failed to update meeting",
+      message: err?.message,
+    });
   }
 });

@@ -148,12 +148,7 @@ const computedMentees = computed(() => {
 })
 
 async function editMentee(mentee: PartialStudent) {
-  const auth = useCookie<string>("nitt_token")
-  if (!auth.value) return
-
   try {
-    // Navigate directly to the edit page
-    console.log(mentee);
     await navigateTo(`/hod/students/${mentee.register_number}/edit`)
   } catch (err) {
     console.error(err)
@@ -162,32 +157,20 @@ async function editMentee(mentee: PartialStudent) {
 }
 
 async function deleteMentee(mentee: PartialStudent) {
-  const auth = useCookie<string>("nitt_token")
-  if (!auth.value) return
-
   if (!confirm(`Are you sure you want to delete ${mentee.name} (${mentee.register_number})?`)) {
     return
   }
 
   try {
-    // Delete using the users delete endpoint which handles cascading deletions
-    const { error } = await useFetch(`/api/users/delete/${mentee.register_number}`, {
+    await $fetch(`/api/users/delete/${mentee.register_number}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${auth.value}`,
-      }
     })
 
-    if (error.value) {
-      console.error("Delete failed", error.value)
-      alert("Failed to delete student. Please try again.")
-    } else {
-      emit('deleted', mentee.register_number)
-      alert("Student deleted successfully!")
-    }
-  } catch (err) {
-    console.error(err)
-    alert("An error occurred while deleting the student.")
+    emit('deleted', mentee.register_number)
+    alert("Student deleted successfully!")
+  } catch (err: any) {
+    console.error("Delete failed", err)
+    alert(err?.data?.statusText || err?.data?.statusMessage || "Failed to delete student. Please try again.")
   }
 }
 </script>

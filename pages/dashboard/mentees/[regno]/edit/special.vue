@@ -10,7 +10,7 @@
                         <label :htmlFor="field" class="w-full text-start">
                             {{ field.split("_").map(x => x.slice(0, 1).toUpperCase() + x.slice(1)).join(" ") }}
                         </label>
-                        <textarea :name="field" :id="field" :value="mentee.achievements[field]"
+                        <textarea :name="field" :id="field" :value="mentee.achievements ? mentee.achievements[field] : ''"
                             class="p-2 w-full lg:w-96 rounded-md shadow-md" />
                     </div>
                 </div>
@@ -20,7 +20,7 @@
                     {{ message.text }}</MiscMessage>
                 <button type="submit"
                     class="rounded-md transition duration-500 ease-in-out transform hover:-translate-y-1 bg-nitMaroon-600 text-white py-2 px-8">
-                    Create User
+                    Update Details
                 </button>
             </form>
             <hr class="border border-stone-400 w-full lg:w-96" />
@@ -28,15 +28,14 @@
     </div>
 </template>
 <script setup lang="ts">
-import { Student } from '~/types/types';
+import type { Student } from '~/types/types';
+import { specialFields } from '~/utils/content.js';
 
 definePageMeta({
     middleware: [
         "level1"
     ]
 })
-
-
 
 const message = ref({ type: "error", text: "" })
 const route = useRoute();
@@ -51,40 +50,29 @@ if (!mentee) {
         navigateTo("/dashboard")
     })
 }
+
 const handleSubmit = async (e: Event) => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form as HTMLFormElement);
-    const creds: Student["achievements"] = {};
+    const creds: Record<string, string> = {};
     for (const key of specialFields) {
-        creds[key] = formData.get(key) as string || ""
+        creds[key] = (formData.get(key) as string) || "";
     }
-    const auth = useCookie<string>("nitt_token");
-    if (!auth.value) return false;
-    await $fetch<{ token: string }>(`/api/mentees/update/${regno}/special`, {
-        method: "PATCH", body: JSON.stringify(creds),
-        headers: { "Authorization": `Bearer ${auth.value}` },
-        onResponse({ request, response, options }) {
-            message.value.type = "success"
-            message.value.text = "Updated details."
-            navigateTo(`/dashboard/mentees/${regno}`)
-        },
-        onResponseError({ request, response, options }) {
-            message.value.type = "error"
-            switch (response.status) {
-                case 400:
-                    // this won't happen
-                    message.value.text = "Missing Fields."
-                case 401:
-                    message.value.text = "Can't grant the access"
-                    break;
-                default:
-                    message.value.text = "An unknown error occurred";
-                    break;
-            }
-            abortNavigation()
 
-        }
-    })
+    try {
+        await $fetch(`/api/mentees/update/${regno}/special`, {
+            method: "PATCH",
+            body: creds,
+        });
+        message.value.type = "success";
+        message.value.text = "Updated details.";
+        setTimeout(() => {
+            navigateTo(`/dashboard/mentees/${regno}`);
+        }, 1000);
+    } catch (error: any) {
+        message.value.type = "error";
+        message.value.text = error?.data?.statusText || error?.data?.statusMessage || "Failed to update details.";
+    }
 };
 </script>

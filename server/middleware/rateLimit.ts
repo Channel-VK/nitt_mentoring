@@ -20,9 +20,9 @@ const apiLimiter = new RateLimiterMemory({
   duration: 60, // per minute
 });
 
-// Bulk upload rate limiter - more lenient
+// Bulk upload / assignment rate limiter - more lenient
 const bulkLimiter = new RateLimiterMemory({
-  points: 5, // 5 bulk uploads
+  points: 20, // 20 operations
   duration: 5 * 60, // per 5 minutes
 });
 
@@ -39,8 +39,8 @@ export default defineEventHandler(async (event) => {
     else if (path.includes('/api/users/password-reset')) {
       await passwordResetLimiter.consume(ip);
     }
-    // Apply lenient rate limiting to bulk upload endpoint
-    else if (path.includes('/api/mentees/bulk')) {
+    // Apply lenient rate limiting to bulk upload and batch assignment endpoints
+    else if (path.includes('/api/mentees/bulk') || path.includes('/api/mentees/assign')) {
       await bulkLimiter.consume(ip);
     }
     // Apply general rate limiting to all other API endpoints
